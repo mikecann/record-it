@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    env:
+      RECORD_IT_SKIP_HARDWARE_TESTS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell syntax
+        run: |
+          for script in record-it *.sh tests/*.sh; do
+            bash -n "$script"
+          done
+      - name: Check installation and launcher dispatch
+        run: bash tests/install-test.sh
+      - name: Build the app and recovery helper
+        run: swift build
+      - name: Run Swift tests
+        run: swift test

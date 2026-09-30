@@ -1,11 +1,73 @@
-![Record It](docs/header.webp)
+# ![record-it icon](icons/record-it.png) record-it
 
-# record-it
+Record your screen and camera at full resolution into separate files
 
-A small native macOS screen, camera, and audio recorder built with SwiftUI,
-ScreenCaptureKit, and AVFoundation.
+macOS
+
+<!-- media: hero -->
+<!-- ![record-it](docs/hero.png) -->
+<!-- /media: hero -->
+
+## What it is
+
+This is the recorder I use for my videos. It can record the screen, the camera,
+both, or just audio, and when you do both you get a separate file for each so
+nothing gets squished into one canvas.
+
+While it's recording, it shows a live dashboard of what's actually being written
+to disk, and it shouts at me if something stalls or the mic goes quiet. It also
+writes movies in small fragments, so a crash still leaves a file that plays.
+
+## Get it
+
+Paste this into your AI coding agent (Claude Code, Codex, Cursor...):
+
+> Clone https://github.com/mikecann/record-it and make it my own. It's one of Mike
+> Cann's personal tools, so read the README first, change anything specific to his
+> setup to suit mine, then help me get it running.
+
+### Or set it up by hand
+
+You'll need macOS 14 or later and Xcode or its Command Line Tools with Swift 5.10
+or later. Install the command-line tools with `xcode-select --install` if needed.
+Video recording needs a hardware H.264 or HEVC encoder. Camera and audio-only
+takes also need a separate built-in microphone for the recovery recording.
+
+```bash
+git clone https://github.com/mikecann/record-it.git
+cd record-it
+bash setup_mac.sh
+bash install.sh
+record-it
+```
+
+`setup_mac.sh` builds and signs `~/Applications/Record It.app`. `install.sh` links
+this clone's launcher into `~/.local/bin`, or a directory you pass as its first
+argument. If that directory isn't on PATH, the installer prints the line to add
+to `~/.zshrc` or `~/.bashrc`. Run the installer again after moving the clone.
+
+There are no API keys or `.env` settings. On first use, macOS asks for Screen
+Recording, Camera, or Microphone access. If it asks you to restart after granting
+Screen Recording access, quit the app and run `record-it` again.
+
+## Using it
+
+Choose **Screen**, **Camera**, **Both**, or **Audio**, select the devices and
+output project, then start recording. For screen capture you can choose a whole
+display or one window. Stop the take to finalize the files and reveal them in
+Finder. **Preview…** lets you check camera framing before a take.
+
+I have a few defaults for my setup: projects under `~/dev/convex/convex-videos`,
+a `PA27JCV` display and a `Yeti` microphone. Choose your own devices in the app;
+to change the project directory, edit `defaultProjectsRoot` in
+`Sources/RecordItApp/RecordingViewModel.swift`. If that folder doesn't exist,
+**No Project** saves to `~/Movies/record-it-output`.
+
+You can also use `record-it restart`, `record-it stop`, or `record-it setup`.
 
 ## Screenshots
+
+![Record It](docs/header.webp)
 
 ![Record It screen and camera capture](docs/ss1.png)
 
@@ -16,9 +78,9 @@ ScreenCaptureKit, and AVFoundation.
 - Screen, camera, both, or audio only
 - The selected screen at 30 fps, encoded with the selected hardware H.264 or
   HEVC encoder
-- `HG584T05` by default, preserving its active framebuffer resolution without
-  upscaling. This machine keeps it at 1920 × 1080 HiDPI, producing a native
-  3840 × 2160 recording
+- A display or individual window. Displays preserve their active framebuffer
+  resolution without upscaling; windows capture at the display's pixel scale
+- My preferred display is `PA27JCV`, falling back to the first available display
 - The selected camera's best format at 30 fps, preferring native 3840 × 2160
 - A **Preview…** button beside the camera selector opens a movable, resizable,
   uncropped live framing window without recording audio or creating a file.
@@ -26,9 +88,11 @@ ScreenCaptureKit, and AVFoundation.
 - Selectable screen audio: **System Sound** or **None**. System Sound captures
   playback from music, browsers, videos, and other Mac apps, not a microphone
 - Selectable camera microphone, defaulting to the first input with `Yeti` in its
-  name. Choose **None** for a silent camera file
-- Audio-only mode records the selected input as stereo 48 kHz, 192 kbps AAC in
-  an `audio.m4a` file. It does not require a display, camera, or video encoder
+  name. Camera and audio-only recordings require a primary microphone and a
+  separate built-in recovery microphone
+- Audio-only mode records AAC in an `audio.m4a` file, preserving the input's
+  sample rate and channel count. Mono uses 96 kbps, other channel counts use
+  128 kbps. It does not require a display, camera, or video encoder
 - Separate `screen.mov` and `camera.mov` files when recording both, preserving each source's full resolution
 
 ## Encoder settings
@@ -68,9 +132,9 @@ immediately and restored the next time Record It opens.
 ## Display resolution
 
 Record It captures the selected display's active framebuffer exactly and never
-changes display modes. Keep `HG584T05` at 1920 × 1080 HiDPI in macOS or
-BetterDisplay to record a native 3840 × 2160 source. Use browser, editor, or
-terminal zoom when individual application content needs to be larger.
+changes display modes. For example, a display running at 1920 × 1080 HiDPI can
+produce a native 3840 × 2160 recording. Use browser, editor, or terminal zoom
+when individual application content needs to be larger.
 
 ## File names
 
@@ -173,27 +237,39 @@ stops are written to:
 ~/Library/Logs/Record It/record-it.log
 ```
 
-## Setup
-
-```bash
-bash tools/record-it/setup_mac.sh
-bash install_mac.sh
-record-it
-```
-
-The first use of each capture source prompts for Screen Recording, Camera, or
-Microphone access.
-If macOS asks you to restart the app after granting Screen Recording access, quit
-and run `record-it` again.
-
 ## Development
 
 ```bash
-swift test --package-path tools/record-it
-bash tools/record-it/restart.sh
+swift test
+bash tests/install-test.sh
+bash restart.sh
 ```
 
 `restart.sh` stops the current app, builds a debug app bundle, signs it, stages it
 at `~/Applications/Record It.app`, and launches it. When no Apple Development
 certificate is installed, the build uses a stable local designated requirement
-so macOS privacy permissions survive subsequent ad-hoc rebuilds.
+so macOS privacy permissions survive subsequent ad-hoc rebuilds. The existing
+`com.mikerosoft.record-it` bundle ID is kept so existing permissions and settings
+continue to apply.
+
+The movie-writer integration tests use real hardware video encoders. On hosted CI
+or a machine without encoder access, run:
+
+```bash
+RECORD_IT_SKIP_HARDWARE_TESTS=1 swift test
+```
+
+This skips only those five video integration tests. Audio encoding and all other
+tests still run. Run plain `swift test` on a Mac with hardware encoder access
+before changing the recording pipeline.
+
+For an isolated app build, set `RECORD_IT_APP_DIR` to another `.app` path.
+`RECORD_IT_BUILD_CONFIGURATION` selects `debug` or `release` for `build-app.sh`,
+and `RECORD_IT_CODESIGN_IDENTITY=-` forces ad-hoc signing. Leave the signing
+identity unset to use the first available Apple Development certificate.
+
+## More tools
+
+You can find my other tools at [mikerosoft.app](https://mikerosoft.app).
+
+MIT licensed.

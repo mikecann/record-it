@@ -5,6 +5,15 @@ import XCTest
 @testable import RecordItApp
 
 final class MovieWriterIntegrationTests: XCTestCase {
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        // Hosted CI and restricted environments may have no hardware encoder.
+        // Keep the real encoding checks enabled by default on developer Macs.
+        if ProcessInfo.processInfo.environment["RECORD_IT_SKIP_HARDWARE_TESTS"] == "1" {
+            throw XCTSkip("Hardware video encoding is disabled for this test run.")
+        }
+    }
+
     func testWriterFinalizesAPlayableVariableFrameRateHEVCMovie() async throws {
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("record-it-\(UUID().uuidString).mov")
