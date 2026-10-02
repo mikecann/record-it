@@ -92,6 +92,22 @@ final class RecordingViewModel: ObservableObject {
         destinations.first { $0.id == selectedDestinationID }
     }
 
+    var projectsRoot: URL {
+        projectCatalog.projectsRoot
+    }
+
+    func createProject(named name: String) throws {
+        guard !isRecording, !isBusy else {
+            throw ProjectCreationError.recordingUnavailable
+        }
+        // Read the catalog first so a refresh failure cannot leave a created,
+        // unselected project behind while the dialog reports a failure.
+        let existingDestinations = try projectCatalog.destinations()
+        let destination = try projectCatalog.createProject(named: name)
+        destinations = [destination] + existingDestinations
+        selectedDestinationID = destination.id
+    }
+
     var selectedDisplay: CaptureDisplay? {
         displays.first { $0.id == selectedDisplayID }
     }

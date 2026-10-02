@@ -46,6 +46,7 @@ struct RecordItView: View {
     @ObservedObject private var preferences: RecordingPreferences
     @StateObject private var cameraPreviewWindowController = CameraPreviewWindowController()
     @State private var showingEncoderSettings = false
+    @State private var showingNewProject = false
 
     init(model: RecordingViewModel) {
         self.model = model
@@ -108,6 +109,9 @@ struct RecordItView: View {
         }
         .sheet(isPresented: $showingEncoderSettings) {
             EncoderSettingsView(model: model)
+        }
+        .sheet(isPresented: $showingNewProject) {
+            NewProjectView(model: model)
         }
     }
 
@@ -428,12 +432,20 @@ struct RecordItView: View {
 
     private var projectPicker: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Picker("Project", selection: $model.selectedDestinationID) {
-                ForEach(model.destinations) { destination in
-                    Text(destination.displayName).tag(destination.id)
+            HStack(spacing: 8) {
+                Picker("Project", selection: $model.selectedDestinationID) {
+                    ForEach(model.destinations) { destination in
+                        Text(destination.displayName).tag(destination.id)
+                    }
                 }
+                .labelsHidden()
+
+                Button("New…") {
+                    showingNewProject = true
+                }
+                .help("Create a new project")
+                .accessibilityLabel("New project")
             }
-            .labelsHidden()
             .disabled(model.isRecording || model.isBusy)
 
             if let outputDirectory = model.selectedDestination?.outputDirectory {
@@ -706,6 +718,65 @@ struct RecordItView: View {
         case .audio: "waveform"
         case .recoveryAudio: "lifepreserver"
         }
+    }
+}
+
+private struct NewProjectView: View {
+    @ObservedObject var model: RecordingViewModel
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var nameIsFocused: Bool
+    @State private var name = ""
+    @State private var creationError: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("New project")
+                .font(.title2.weight(.semibold))
+
+            TextField("Project name", text: $name)
+                .textFieldStyle(.roundedBorder)
+                .focused($nameIsFocused)
+                .onChange(of: name) { _, _ in creationError = nil }
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Create a folder in:")
+                Text(model.projectsRoot.path.replacingOccurrences(
+                    of: FileManager.default.homeDirectoryForCurrentUser.path,
+                    with: "~"
+                ))
+                .font(.caption.monospaced())
+                .textSelection(.enabled)
+                Text("Recordings will go in its source folder.")
+            }
+            .font(.callout)
+            .foregroundStyle(.secondary)
+
+            if let creationError {
+                Text(creationError)
+                    .font(.callout)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Create Project") {
+                    do {
+                        try model.createProject(named: name)
+                        dismiss()
+                    } catch {
+                        creationError = error.localizedDescription
+                    }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isRecording || model.isBusy)
+            }
+        }
+        .padding(24)
+        .frame(width: 420)
+        .onAppear { nameIsFocused = true }
     }
 }
 

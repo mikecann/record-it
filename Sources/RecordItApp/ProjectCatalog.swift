@@ -29,6 +29,26 @@ struct ProjectCatalog {
     let projectsRoot: URL
     let fallbackOutputRoot: URL
 
+    func createProject(named requestedName: String) throws -> ProjectDestination {
+        let name = requestedName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, !name.hasPrefix("."),
+              !name.contains("/"), !name.contains(":"),
+              name.rangeOfCharacter(from: .controlCharacters) == nil else {
+            throw ProjectCreationError.invalidName
+        }
+
+        let directory = projectsRoot.appendingPathComponent(name, isDirectory: true)
+        // Creating a project must never reuse or modify an existing folder.
+        guard !FileManager.default.fileExists(atPath: directory.path) else {
+            throw ProjectCreationError.alreadyExists(name)
+        }
+        try FileManager.default.createDirectory(at: projectsRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        let destination = ProjectDestination.project(directory: directory, date: Date())
+        try prepareOutputDirectory(for: destination)
+        return destination
+    }
+
     func destinations() throws -> [ProjectDestination] {
         guard FileManager.default.fileExists(atPath: projectsRoot.path) else {
             return [.noProject(outputDirectory: fallbackOutputRoot)]
@@ -43,7 +63,10 @@ struct ProjectCatalog {
         let projects = try directories.compactMap { directory -> ProjectDestination? in
             let values = try directory.resourceValues(forKeys: keys)
             guard values.isDirectory == true else { return nil }
-            return .project(directory: directory, date: values.creationDate)
+            // Keep IDs rooted in the same path used when creating projects.
+            // Directory enumeration can expand aliases such as /var to /private/var.
+            let projectDirectory = projectsRoot.appendingPathComponent(directory.lastPathComponent, isDirectory: true)
+            return .project(directory: projectDirectory, date: values.creationDate)
         }
 
         return projects.sorted {
@@ -53,6 +76,23 @@ struct ProjectCatalog {
 
     func initialDestination() throws -> ProjectDestination {
         try destinations().first ?? .noProject(outputDirectory: fallbackOutputRoot)
+    }
+}
+
+enum ProjectCreationError: LocalizedError {
+    case invalidName
+    case alreadyExists(String)
+    case recordingUnavailable
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidName:
+            "Enter a folder name without /, :, or control characters. It cannot start with a dot."
+        case .alreadyExists(let name):
+            "A file or folder named \"\(name)\" already exists. Choose another name."
+        case .recordingUnavailable:
+            "Wait until Record It has finished recording or loading before creating a project."
+        }
     }
 }
 

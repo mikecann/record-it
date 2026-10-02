@@ -4,6 +4,25 @@ import XCTest
 
 @MainActor
 final class RecordingViewModelTests: XCTestCase {
+    func testCreatingProjectSelectsItAndKeepsExistingDestinations() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: home) }
+        let suiteName = "record-it-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let model = RecordingViewModel(preferences: RecordingPreferences(defaults: defaults), homeDirectory: home)
+        let existing = defaultProjectsRoot(homeDirectory: home).appendingPathComponent("existing")
+        try FileManager.default.createDirectory(at: existing, withIntermediateDirectories: true)
+
+        try model.createProject(named: "new-video")
+
+        XCTAssertEqual(model.selectedDestination?.displayName, "new-video")
+        XCTAssertEqual(model.destinations.map(\.displayName), ["new-video", "existing", "No Project"])
+        let selectedID = model.selectedDestinationID
+        XCTAssertThrowsError(try model.createProject(named: "existing"))
+        XCTAssertEqual(model.selectedDestinationID, selectedID)
+    }
+
     func testReusedTakeNamesGetASuffixInsteadOfOverwriting() {
         let taken: Set<String> = ["intro", "intro-2"]
 

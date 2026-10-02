@@ -154,6 +154,9 @@ recording.
 
 The Project menu lists directories under `~/dev/convex/convex-videos`, newest
 first.
+Click **New…** beside the menu, enter a project name, and choose **Create Project**.
+Record It creates the project and its `source` folder in that default location,
+then selects it for recording. Existing file and folder names cannot be reused.
 Choosing a project saves into its `source` folder, creating it when needed:
 
 ```text

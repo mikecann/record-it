@@ -97,6 +97,9 @@ later rebuilds keep the grant.
   The independently signed helper writes recovery audio under
   `~/Library/Application Support/Record It/Recovery Audio/`.
 - Projects come from `~/dev/convex/convex-videos`, newest creation date first.
+- **New…** beside the Project picker creates a named project and its `source`
+  folder under that root, then selects it. Existing names and invalid or hidden
+  folder names are rejected without changing the selected project.
 - Project recordings go to `<project>/source`; No Project goes to
   `~/Movies/record-it-output`.
 - Screen and camera outputs are separate files so neither source is scaled into
