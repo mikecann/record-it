@@ -8,6 +8,7 @@ final class CameraRecorder: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
     private let outputURL: URL
     private let encoderConfiguration: EncoderConfiguration
     private let startGate: RecordingStartGate?
+    private let cameraDelay: CMTime
     private let onProblem: (@Sendable (Error) -> Void)?
     private let onTelemetry: (@Sendable (RecordingTelemetry) -> Void)?
     private let captureSession = AVCaptureSession()
@@ -53,6 +54,7 @@ final class CameraRecorder: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
         outputURL: URL,
         encoderConfiguration: EncoderConfiguration,
         startGate: RecordingStartGate? = nil,
+        cameraDelay: CMTime = .zero,
         onProblem: (@Sendable (Error) -> Void)? = nil,
         onTelemetry: (@Sendable (RecordingTelemetry) -> Void)? = nil
     ) {
@@ -61,6 +63,7 @@ final class CameraRecorder: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
         self.outputURL = outputURL
         self.encoderConfiguration = encoderConfiguration
         self.startGate = startGate
+        self.cameraDelay = cameraDelay
         self.onProblem = onProblem
         self.onTelemetry = onTelemetry
     }
@@ -310,7 +313,8 @@ final class CameraRecorder: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
             height: Int(dimensions.height),
             includesAudio: microphoneAttached,
             encoderConfiguration: encoderConfiguration,
-            startGate: startGate
+            startGate: startGate,
+            cameraDelay: cameraDelay
         )
     }
 

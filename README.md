@@ -94,6 +94,12 @@ You can also use `record-it restart`, `record-it stop`, or `record-it setup`.
   sample rate and channel count. Mono uses 96 kbps, other channel counts use
   128 kbps. It does not require a display, camera, or video encoder
 - Separate `screen.mov` and `camera.mov` files when recording both, preserving each source's full resolution
+- Lip sync: a webcam's picture runs behind its microphone, so **Camera delay**
+  in Settings (default 80 ms, measured with a clap test on a Razer Kiyo Pro
+  Ultra and a Yeti) places each camera frame that much earlier. Set it to 0 to
+  turn it off. Camera files say how much was corrected (QuickTime metadata
+  `com.mikerosoft.record-it.camera-delay`, in seconds), so an editor that
+  reads it, like Tandem, doesn't correct them twice
 
 ## Encoder settings
 

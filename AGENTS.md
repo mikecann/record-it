@@ -85,6 +85,12 @@ later rebuilds keep the grant.
   It does not use a microphone.
 - Camera audio is independently selectable and defaults to the first microphone
   whose name contains `Yeti`.
+- The webcam's picture runs behind its microphone (a clap test measured 75 ms
+  on the Kiyo with the Yeti). **Camera delay** in Settings (default 80 ms, 0 to
+  turn it off) places each camera frame that much earlier as `MovieWriter`
+  writes it, so the file is in sync for every app. The file is tagged with
+  `com.mikerosoft.record-it.camera-delay` (QuickTime metadata, seconds) so
+  Tandem doesn't take the delay out a second time.
 - The encoder menu lists only available VideoToolbox H.264 and HEVC hardware
   encoders. CBR, CQP, and VBR controls are capability-filtered and persist in
   `UserDefaults` between launches.

@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import CoreMedia
 import Foundation
 
 func defaultProjectsRoot(homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
@@ -379,6 +380,7 @@ final class RecordingViewModel: ObservableObject {
                         outputURL: outputURL,
                         encoderConfiguration: encoderConfiguration,
                         startGate: startGate,
+                        cameraDelay: CMTime(value: CMTimeValue(preferences.cameraDelayMilliseconds), timescale: 1000),
                         onProblem: { [weak self] error in
                             Task { @MainActor [weak self] in
                                 self?.handleCaptureProblem(error, source: .camera)

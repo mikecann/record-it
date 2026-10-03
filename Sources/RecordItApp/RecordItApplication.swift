@@ -837,7 +837,7 @@ private struct EncoderSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Encoder Settings")
+                Text("Settings")
                     .font(.title2.bold())
                 Text("Only available H.264 and HEVC hardware encoders are shown.")
                     .font(.subheadline)
@@ -893,6 +893,22 @@ private struct EncoderSettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Divider()
+
+            Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 8) {
+                GridRow {
+                    settingsLabel("Camera delay")
+                    integerControl(value: $preferences.cameraDelayMilliseconds, range: 0...500, step: 5, unit: "ms")
+                }
+                GridRow {
+                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                    Text("A webcam's picture runs behind its microphone, so camera recordings place each frame this much earlier to keep lips in time with the voice. 80 ms suits the Kiyo with the Yeti; 0 turns it off.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
 
             Divider()
 

@@ -54,6 +54,22 @@ final class RecordingPreferencesTests: XCTestCase {
         XCTAssertEqual(restored.qualityParameter, 17)
     }
 
+    func testCameraDelayDefaultsToTheKiyoAndYetiAndPersistsWithinLimits() {
+        let suiteName = "record-it-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let initial = RecordingPreferences(defaults: defaults)
+        XCTAssertEqual(initial.cameraDelayMilliseconds, 80, "a clap test measured 75 ms on the Razer Kiyo with the Yeti")
+
+        initial.cameraDelayMilliseconds = 0
+        XCTAssertEqual(RecordingPreferences(defaults: defaults).cameraDelayMilliseconds, 0, "off survives a relaunch")
+        initial.cameraDelayMilliseconds = 900
+        XCTAssertEqual(RecordingPreferences(defaults: defaults).cameraDelayMilliseconds, 500)
+        initial.cameraDelayMilliseconds = -20
+        XCTAssertEqual(RecordingPreferences(defaults: defaults).cameraDelayMilliseconds, 0)
+    }
+
     func testScreenQualityDefaultsToEditMasterAndPersists() {
         let suiteName = "record-it-tests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

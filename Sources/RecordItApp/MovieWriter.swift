@@ -85,6 +85,14 @@ final class MovieWriter {
     private var latestVideoEndTime: CMTime?
     private var videoSamplesWritten = 0
     private var audioSamplesWritten = 0
+    /// How far the picture runs behind the sound (a webcam behind its
+    /// microphone). Each frame is placed this much earlier, so lips match
+    /// the voice in the file.
+    private let cameraDelay: CMTime
+
+    /// The QuickTime metadata key that records the delay taken out of the
+    /// picture, in seconds, so an editor (Tandem) doesn't take it out again.
+    static let cameraDelayKey = "com.mikerosoft.record-it.camera-delay"
 
     init(
         outputURL: URL,
@@ -92,10 +100,12 @@ final class MovieWriter {
         height: Int,
         includesAudio: Bool,
         encoderConfiguration: EncoderConfiguration,
-        startGate: RecordingStartGate? = nil
+        startGate: RecordingStartGate? = nil,
+        cameraDelay: CMTime = .zero
     ) throws {
         self.outputURL = outputURL
         self.startGate = startGate
+        self.cameraDelay = cameraDelay
         // Never delete an existing file here. AVAssetWriter refuses to overwrite,
         // which is the right outcome if a take name somehow collides.
         writer = try AVAssetWriter(outputURL: outputURL, fileType: .mov)
@@ -138,6 +148,15 @@ final class MovieWriter {
             audioInput = nil
         }
 
+        if cameraDelay > .zero {
+            let tag = AVMutableMetadataItem()
+            tag.keySpace = .quickTimeMetadata
+            tag.key = Self.cameraDelayKey as NSString
+            tag.value = String(format: "%.3f", cameraDelay.seconds) as NSString
+            tag.dataType = kCMMetadataBaseDataType_UTF8 as String
+            writer.metadata = [tag]
+        }
+
         guard writer.startWriting() else {
             throw writer.error ?? RecordItError.message("The movie writer failed to start.")
         }
@@ -161,7 +180,9 @@ final class MovieWriter {
         }
         guard let sessionStartTime else { return false }
 
-        let elapsed = max(0, CMTimeGetSeconds(sourceTimestamp - sessionStartTime))
+        // A late camera's frames go where their picture was taken. The first
+        // few land on the first slot together, and the newest one is kept.
+        let elapsed = max(0, CMTimeGetSeconds(sourceTimestamp - cameraDelay - sessionStartTime))
         let targetFrameIndex = max(0, Int((elapsed * 30).rounded()))
         if let pendingVideoFrameIndex, targetFrameIndex <= pendingVideoFrameIndex {
             // Keep the newest pixels when ScreenCaptureKit produces more than

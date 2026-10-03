@@ -11,6 +11,7 @@ final class RecordingPreferences: ObservableObject {
         static let maximumBitRateMbps = "maximumBitRateMbps"
         static let qualityParameter = "qualityParameter"
         static let screenQuality = "screenQuality"
+        static let cameraDelayMilliseconds = "cameraDelayMilliseconds"
     }
 
     private let defaults: UserDefaults
@@ -67,6 +68,20 @@ final class RecordingPreferences: ObservableObject {
         didSet { defaults.set(screenQuality.rawValue, forKey: Key.screenQuality) }
     }
 
+    /// How far the camera's picture runs behind its microphone. Camera
+    /// recordings place each frame this much earlier, so lips match the
+    /// voice. A clap test measured 75 ms on the Razer Kiyo Pro Ultra with
+    /// the Yeti, hence the 80 ms default.
+    @Published var cameraDelayMilliseconds: Int {
+        didSet {
+            let clampedValue = min(500, max(0, cameraDelayMilliseconds))
+            if cameraDelayMilliseconds != clampedValue {
+                cameraDelayMilliseconds = clampedValue
+            }
+            defaults.set(clampedValue, forKey: Key.cameraDelayMilliseconds)
+        }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         recordingMode = defaults.string(forKey: Key.recordingMode)
@@ -85,6 +100,9 @@ final class RecordingPreferences: ObservableObject {
             : min(51, max(0, defaults.integer(forKey: Key.qualityParameter)))
         screenQuality = defaults.string(forKey: Key.screenQuality)
             .flatMap(ScreenQuality.init(rawValue:)) ?? .editMaster
+        cameraDelayMilliseconds = defaults.object(forKey: Key.cameraDelayMilliseconds) == nil
+            ? 80
+            : min(500, max(0, defaults.integer(forKey: Key.cameraDelayMilliseconds)))
         if defaults.object(forKey: Key.openFinderAfterRecording) == nil {
             openFinderAfterRecording = true
         } else {

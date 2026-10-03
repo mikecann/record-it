@@ -76,6 +76,54 @@ final class MovieWriterIntegrationTests: XCTestCase {
         XCTAssertEqual(frameCount, 3, "Sparse screen updates should not manufacture catch-up frames.")
     }
 
+    func testACameraDelayMovesThePictureEarlierAndTagsTheFile() async throws {
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("record-it-camera-delay-\(UUID().uuidString).mov")
+        defer { try? FileManager.default.removeItem(at: outputURL) }
+        let encoder = try XCTUnwrap(preferredHardwareVideoEncoder(
+            in: HardwareVideoEncoderCatalog.availableEncoders(),
+            savedID: ""
+        ))
+        // The webcam's picture runs 0.1 s (three frames) behind its sound.
+        let writer = try MovieWriter(
+            outputURL: outputURL,
+            width: 128,
+            height: 128,
+            includesAudio: false,
+            encoderConfiguration: EncoderConfiguration(
+                encoder: encoder,
+                rateControl: preferredRateControl(
+                    savedMode: .vbr,
+                    supportedModes: encoder.supportedRateControls
+                ) ?? .cbr,
+                bitRateMbps: 10,
+                maximumBitRateMbps: 15,
+                qualityParameter: 20
+            ),
+            cameraDelay: CMTime(value: 1, timescale: 10)
+        )
+        for frame in 0...6 {
+            writer.appendVideo(try videoSampleBuffer(frame: frame, width: 128, height: 128))
+        }
+        try await writer.finish()
+
+        // Frame 3 was seen at 0.1 s, but it shows what was in front of the
+        // camera at the start, so it plays first; frame 4 plays a frame later.
+        let frames = try await decodedFrames(outputURL)
+        let first = try XCTUnwrap(frames.first)
+        XCTAssertEqual(first.time, 0, accuracy: 0.001)
+        XCTAssertEqual(Double(first.level), 120, accuracy: 12, "frame 3's picture")
+        let second = try XCTUnwrap(frames.dropFirst().first)
+        XCTAssertEqual(second.time, 1.0 / 30, accuracy: 0.001)
+        XCTAssertEqual(Double(second.level), 160, accuracy: 12, "frame 4's picture")
+
+        // The file says it's been corrected, so an editor doesn't do it again.
+        let metadata = try await AVURLAsset(url: outputURL).load(.metadata)
+        let tag = metadata.first { $0.identifier == AVMetadataItem.identifier(forKey: MovieWriter.cameraDelayKey, keySpace: .quickTimeMetadata) }
+        let value = try await tag?.load(.stringValue)
+        XCTAssertEqual(value, "0.100")
+    }
+
     func testWriterPreservesALongStaticGapWithoutEncodingHundredsOfDuplicateFrames() async throws {
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("record-it-static-gap-\(UUID().uuidString).mov")
@@ -236,6 +284,29 @@ final class MovieWriterIntegrationTests: XCTestCase {
         XCTAssertFalse(tracks.isEmpty)
         XCTAssertGreaterThanOrEqual(duration.seconds, 5)
     }
+}
+
+/// Each decoded frame's time and the grey level of its first pixel.
+private func decodedFrames(_ url: URL) async throws -> [(time: Double, level: Int)] {
+    let asset = AVURLAsset(url: url)
+    let tracks = try await asset.loadTracks(withMediaType: .video)
+    let track = try XCTUnwrap(tracks.first)
+    let reader = try AVAssetReader(asset: asset)
+    let output = AVAssetReaderTrackOutput(
+        track: track,
+        outputSettings: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+    )
+    reader.add(output)
+    XCTAssertTrue(reader.startReading())
+    var frames: [(time: Double, level: Int)] = []
+    while let sample = output.copyNextSampleBuffer() {
+        guard let pixels = CMSampleBufferGetImageBuffer(sample) else { continue }
+        CVPixelBufferLockBaseAddress(pixels, .readOnly)
+        let level = CVPixelBufferGetBaseAddress(pixels).map { Int($0.load(fromByteOffset: 4 * 64 * 128 + 4 * 64, as: UInt8.self)) } ?? -1
+        CVPixelBufferUnlockBaseAddress(pixels, .readOnly)
+        frames.append((CMSampleBufferGetPresentationTimeStamp(sample).seconds, level))
+    }
+    return frames
 }
 
 private func videoSampleBuffer(frame: Int, width: Int, height: Int) throws -> CMSampleBuffer {
