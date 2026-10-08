@@ -90,7 +90,10 @@ later rebuilds keep the grant.
   turn it off) places each camera frame that much earlier as `MovieWriter`
   writes it, so the file is in sync for every app. The file is tagged with
   `com.mikerosoft.record-it.camera-delay` (QuickTime metadata, seconds) so
-  Tandem doesn't take the delay out a second time.
+  Tandem doesn't take the delay out a second time. Checked on 2026-10-08:
+  with 80 ms, four claps' hands met 5 to 52 ms after their sound (28 ms on
+  average, within the Kiyo's frame timing), Mike saw them in sync, and
+  Tandem showed "In sync as recorded".
 - The encoder menu lists only available VideoToolbox H.264 and HEVC hardware
   encoders. CBR, CQP, and VBR controls are capability-filtered and persist in
   `UserDefaults` between launches.
