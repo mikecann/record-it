@@ -54,19 +54,32 @@ struct RecordItView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            header
-            if shouldShowRecordingDashboard(isRecording: model.isRecording, isBusy: model.isBusy) {
-                recordingDashboard
-            } else {
-                captureMode
-                configuration
+        // The preview sits to the right of the settings so opening it widens
+        // the window instead of pushing the settings and Start button down.
+        HStack(alignment: .top, spacing: 26) {
+            VStack(alignment: .leading, spacing: 22) {
+                header
+                if shouldShowRecordingDashboard(isRecording: model.isRecording, isBusy: model.isBusy) {
+                    recordingDashboard
+                } else {
+                    captureMode
+                    configuration
+                }
+                Divider()
+                footer
             }
-            Divider()
-            footer
+            .frame(width: 528)
+
+            if let previewModel = cameraPreview.model {
+                InlineCameraPreviewPanel(
+                    cameraName: model.selectedCamera?.name ?? "camera",
+                    model: previewModel
+                )
+                .frame(width: 640)
+                .frame(maxHeight: .infinity)
+            }
         }
         .padding(26)
-        .frame(width: 580)
         .task {
             await model.load()
         }
@@ -398,16 +411,6 @@ struct RecordItView: View {
                 GridRow {
                     rowLabel("Camera", systemImage: "video")
                     cameraPicker
-                }
-
-                if let previewModel = cameraPreview.model {
-                    GridRow {
-                        InlineCameraPreviewPanel(
-                            cameraName: model.selectedCamera?.name ?? "camera",
-                            model: previewModel
-                        )
-                        .gridCellColumns(2)
-                    }
                 }
 
                 GridRow {
