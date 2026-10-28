@@ -12,6 +12,7 @@ final class RecordingPreferences: ObservableObject {
         static let qualityParameter = "qualityParameter"
         static let screenQuality = "screenQuality"
         static let cameraDelayMilliseconds = "cameraDelayMilliseconds"
+        static let showsCameraPreview = "showsCameraPreview"
     }
 
     private let defaults: UserDefaults
@@ -24,6 +25,12 @@ final class RecordingPreferences: ObservableObject {
         didSet {
             defaults.set(openFinderAfterRecording, forKey: Key.openFinderAfterRecording)
         }
+    }
+
+    /// Whether the live camera preview shows beside the settings when idle.
+    /// Hide Preview turns it off until Preview is clicked again.
+    @Published var showsCameraPreview: Bool {
+        didSet { defaults.set(showsCameraPreview, forKey: Key.showsCameraPreview) }
     }
 
     @Published var selectedEncoderID: String {
@@ -103,6 +110,9 @@ final class RecordingPreferences: ObservableObject {
         cameraDelayMilliseconds = defaults.object(forKey: Key.cameraDelayMilliseconds) == nil
             ? 80
             : min(500, max(0, defaults.integer(forKey: Key.cameraDelayMilliseconds)))
+        showsCameraPreview = defaults.object(forKey: Key.showsCameraPreview) == nil
+            ? true
+            : defaults.bool(forKey: Key.showsCameraPreview)
         if defaults.object(forKey: Key.openFinderAfterRecording) == nil {
             openFinderAfterRecording = true
         } else {

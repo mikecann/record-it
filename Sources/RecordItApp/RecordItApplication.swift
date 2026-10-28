@@ -83,10 +83,12 @@ struct RecordItView: View {
         .task {
             await model.load()
         }
-        .onChange(of: model.mode) {
-            // Screen and Audio modes have no camera row to show the preview in.
-            guard !model.mode.capturesCamera else { return }
-            Task { await cameraPreview.hide() }
+        .task(id: previewCameraID) {
+            if let previewCameraID {
+                await cameraPreview.show(cameraID: previewCameraID)
+            } else {
+                await cameraPreview.hide()
+            }
         }
         .onReceive(
             NotificationCenter.default.publisher(
@@ -632,19 +634,9 @@ struct RecordItView: View {
                 }
                 .labelsHidden()
                 .disabled(model.isRecording || model.isBusy)
-                .onChange(of: model.selectedCameraID) {
-                    guard cameraPreview.isPreviewOpen, let camera = model.selectedCamera else { return }
-                    Task { await cameraPreview.show(cameraID: camera.id) }
-                }
 
-                Button(cameraPreview.isPreviewOpen ? "Hide Preview" : "Preview") {
-                    Task {
-                        if cameraPreview.isPreviewOpen {
-                            await cameraPreview.hide()
-                        } else if let camera = model.selectedCamera {
-                            await cameraPreview.show(cameraID: camera.id)
-                        }
-                    }
+                Button(preferences.showsCameraPreview ? "Hide Preview" : "Preview") {
+                    preferences.showsCameraPreview.toggle()
                 }
                 .disabled(cameraPreviewButtonIsDisabled(
                     hasSelectedCamera: model.selectedCamera != nil,
@@ -713,7 +705,8 @@ struct RecordItView: View {
             Button {
                 Task {
                     // The preview and the recorder can't both hold the camera,
-                    // so starting a take puts the preview away first.
+                    // so starting a take puts the preview away first. It
+                    // comes back by itself once the take has finished.
                     await cameraPreview.hide()
                     await model.toggleRecording()
                 }
@@ -733,6 +726,16 @@ struct RecordItView: View {
                 isBusy: model.isBusy
             ))
         }
+    }
+
+    private var previewCameraID: String? {
+        cameraPreviewCameraID(
+            showsPreview: preferences.showsCameraPreview,
+            capturesCamera: model.mode.capturesCamera,
+            selectedCameraID: model.selectedCamera?.id,
+            isRecording: model.isRecording,
+            isBusy: model.isBusy
+        )
     }
 
     private func rowLabel(_ title: String, systemImage: String) -> some View {

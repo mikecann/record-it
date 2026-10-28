@@ -29,6 +29,19 @@ final class RecordingPreferencesTests: XCTestCase {
         XCTAssertFalse(RecordingPreferences(defaults: defaults).openFinderAfterRecording)
     }
 
+    func testCameraPreviewDefaultsOnAndPersists() {
+        let suiteName = "record-it-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let initial = RecordingPreferences(defaults: defaults)
+        XCTAssertTrue(initial.showsCameraPreview)
+
+        initial.showsCameraPreview = false
+
+        XCTAssertFalse(RecordingPreferences(defaults: defaults).showsCameraPreview)
+    }
+
     func testEncoderSettingsDefaultToVBRAndPersistEveryControl() {
         let suiteName = "record-it-tests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

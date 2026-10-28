@@ -16,6 +16,36 @@ final class CameraPreviewTests: XCTestCase {
         XCTAssertEqual(configurationSteps, ["input", "format"])
     }
 
+    func testPreviewShowsTheSelectedCameraWheneverACameraModeIsIdle() {
+        XCTAssertEqual(cameraPreviewCameraID(
+            showsPreview: true, capturesCamera: true, selectedCameraID: "razer",
+            isRecording: false, isBusy: false
+        ), "razer")
+    }
+
+    func testPreviewStaysAwayWhenTurnedOffRecordingOrWithoutACamera() {
+        XCTAssertNil(cameraPreviewCameraID(
+            showsPreview: false, capturesCamera: true, selectedCameraID: "razer",
+            isRecording: false, isBusy: false
+        ))
+        XCTAssertNil(cameraPreviewCameraID(
+            showsPreview: true, capturesCamera: false, selectedCameraID: "razer",
+            isRecording: false, isBusy: false
+        ))
+        XCTAssertNil(cameraPreviewCameraID(
+            showsPreview: true, capturesCamera: true, selectedCameraID: nil,
+            isRecording: false, isBusy: false
+        ))
+        XCTAssertNil(cameraPreviewCameraID(
+            showsPreview: true, capturesCamera: true, selectedCameraID: "razer",
+            isRecording: true, isBusy: false
+        ))
+        XCTAssertNil(cameraPreviewCameraID(
+            showsPreview: true, capturesCamera: true, selectedCameraID: "razer",
+            isRecording: false, isBusy: true
+        ))
+    }
+
     func testInlinePreviewStartsTheSelectedCameraAndStopsWhenHidden() async {
         let sessions = FakeCameraPreviewSessionFactory()
         let preview = InlineCameraPreviewController(makeSessionController: sessions.make)

@@ -347,6 +347,20 @@ private final class CameraPreviewNSView: NSView {
     }
 }
 
+/// The camera the preview should be showing, or nil for no preview. The
+/// preview comes up by itself in Camera and Both modes and comes back after
+/// a take; the recorder needs the camera while a take is starting or running.
+func cameraPreviewCameraID(
+    showsPreview: Bool,
+    capturesCamera: Bool,
+    selectedCameraID: String?,
+    isRecording: Bool,
+    isBusy: Bool
+) -> String? {
+    guard showsPreview, capturesCamera, !isRecording, !isBusy else { return nil }
+    return selectedCameraID
+}
+
 func cameraPreviewButtonIsDisabled(
     hasSelectedCamera: Bool,
     isRecording: Bool,

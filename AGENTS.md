@@ -74,11 +74,12 @@ later rebuilds keep the grant.
   Static screens are not stalls; the user chooses whether to keep recording or stop.
 - The first 4K/30-capable camera is selected by default. On this machine that is
   `Razer Kiyo Pro Ultra`.
-- The camera **Preview** button shows the selected camera uncropped at 16:9
-  inside the main window, to the right of the settings (not a separate window). It
-  captures no audio and writes no file. Changing camera switches the preview;
-  switching to Screen or Audio mode, **Hide Preview**, or **Start Recording**
-  stops the preview session first, so the recorder gets the camera.
+- In Camera and Both modes the selected camera shows uncropped at 16:9 to the
+  right of the settings, inside the main window (not a separate window). It
+  comes up by itself and captures no audio and writes no file. Changing camera
+  switches it. **Start Recording** stops the preview session first so the
+  recorder gets the camera, and the preview returns after the take.
+  **Hide Preview** / **Preview** turn it off and on, persisted in `UserDefaults`.
 - The file name field defaults to the timestamp prefix, accepts an override
   without `.mov`, and resets to a fresh timestamp after every recording.
 - The selected Screen, Camera, Both, or Audio recording mode persists in `UserDefaults`

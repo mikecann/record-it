@@ -57,7 +57,7 @@ Screen Recording access, quit the app and run `record-it` again.
 Choose **Screen**, **Camera**, **Both**, or **Audio**, select the devices and
 output project, then start recording. For screen capture you can choose a whole
 display or one window. Stop the take to finalize the files and reveal them in
-Finder. **Preview** shows the camera in the window so you can check framing before a take.
+Finder. The camera shows beside the settings so you can check framing before a take.
 
 I have a few defaults for my setup: projects under `~/dev/convex/convex-videos`,
 a `PA27JCV` display and a `Yeti` microphone. Choose your own devices in the app;
@@ -84,9 +84,9 @@ You can also use `record-it restart`, `record-it stop`, or `record-it setup`.
   resolution without upscaling; windows capture at the display's pixel scale
 - My preferred display is `PA27JCV`, falling back to the first available display
 - The selected camera's best format at 30 fps, preferring native 3840 × 2160
-- A **Preview** button beside the camera selector shows an uncropped live
-  framing preview inside the main window, without recording audio or creating
-  a file. Starting a recording puts the preview away first
+- An uncropped live camera preview shows beside the settings in Camera and Both
+  modes, without recording audio or creating a file. Starting a recording puts
+  it away and it comes back after the take. **Hide Preview** turns it off
 - Selectable screen audio: **System Sound** or **None**. System Sound captures
   playback from music, browsers, videos, and other Mac apps, not a microphone
 - Selectable camera microphone, defaulting to the first input with `Yeti` in its
