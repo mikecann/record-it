@@ -90,17 +90,6 @@ final class RecordingViewModelTests: XCTestCase {
         )
     }
 
-    func testRecordButtonIsDisabledWhileCameraPreviewIsOpen() {
-        XCTAssertTrue(
-            recordButtonIsDisabled(
-                canRecord: true,
-                isRecording: false,
-                isBusy: false,
-                isCameraPreviewOpen: true
-            )
-        )
-    }
-
     func testResetFileNameReplacesAnOverrideWithTheCurrentTimestampDefault() {
         let model = RecordingViewModel()
         model.fileName = "launch-demo"

@@ -16,11 +16,56 @@ final class CameraPreviewTests: XCTestCase {
         XCTAssertEqual(configurationSteps, ["input", "format"])
     }
 
-    func testPreviewUsesAStandardMovableResizableWindow() {
-        XCTAssertTrue(cameraPreviewWindowStyleMask.contains(.titled))
-        XCTAssertTrue(cameraPreviewWindowStyleMask.contains(.closable))
-        XCTAssertTrue(cameraPreviewWindowStyleMask.contains(.miniaturizable))
-        XCTAssertTrue(cameraPreviewWindowStyleMask.contains(.resizable))
+    func testInlinePreviewStartsTheSelectedCameraAndStopsWhenHidden() async {
+        let sessions = FakeCameraPreviewSessionFactory()
+        let preview = InlineCameraPreviewController(makeSessionController: sessions.make)
+
+        await preview.show(cameraID: "razer")
+
+        XCTAssertTrue(preview.isPreviewOpen)
+        XCTAssertEqual(preview.model?.state, .running)
+        XCTAssertEqual(sessions.made.map(\.startedCameraIDs), [["razer"]])
+
+        await preview.hide()
+
+        XCTAssertFalse(preview.isPreviewOpen)
+        XCTAssertNil(preview.model)
+        XCTAssertEqual(sessions.made.first?.stopCallCount, 1)
+    }
+
+    func testInlinePreviewSwitchesCamerasByStoppingTheOldSessionFirst() async {
+        let sessions = FakeCameraPreviewSessionFactory()
+        let preview = InlineCameraPreviewController(makeSessionController: sessions.make)
+
+        await preview.show(cameraID: "razer")
+        await preview.show(cameraID: "facetime")
+
+        XCTAssertEqual(sessions.made.count, 2)
+        XCTAssertEqual(sessions.made[0].stopCallCount, 1)
+        XCTAssertEqual(sessions.made[1].startedCameraIDs, ["facetime"])
+        XCTAssertEqual(preview.model?.cameraID, "facetime")
+        XCTAssertEqual(preview.model?.state, .running)
+    }
+
+    func testInlinePreviewIgnoresShowingTheCameraItIsAlreadyShowing() async {
+        let sessions = FakeCameraPreviewSessionFactory()
+        let preview = InlineCameraPreviewController(makeSessionController: sessions.make)
+
+        await preview.show(cameraID: "razer")
+        await preview.show(cameraID: "razer")
+
+        XCTAssertEqual(sessions.made.count, 1)
+        XCTAssertEqual(sessions.made[0].stopCallCount, 0)
+    }
+
+    func testHidingAClosedInlinePreviewDoesNothing() async {
+        let sessions = FakeCameraPreviewSessionFactory()
+        let preview = InlineCameraPreviewController(makeSessionController: sessions.make)
+
+        await preview.hide()
+
+        XCTAssertFalse(preview.isPreviewOpen)
+        XCTAssertTrue(sessions.made.isEmpty)
     }
 
     func testPreviewButtonRequiresAnIdleSelectedCamera() {
@@ -69,6 +114,17 @@ final class CameraPreviewTests: XCTestCase {
         await model.start()
 
         XCTAssertEqual(model.state, .failed("Camera unavailable"))
+    }
+}
+
+@MainActor
+private final class FakeCameraPreviewSessionFactory {
+    private(set) var made: [FakeCameraPreviewSessionController] = []
+
+    func make() -> any CameraPreviewSessionControlling {
+        let controller = FakeCameraPreviewSessionController()
+        made.append(controller)
+        return controller
     }
 }
 

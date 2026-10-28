@@ -44,7 +44,7 @@ struct RecordItApplication: App {
 struct RecordItView: View {
     @ObservedObject var model: RecordingViewModel
     @ObservedObject private var preferences: RecordingPreferences
-    @StateObject private var cameraPreviewWindowController = CameraPreviewWindowController()
+    @StateObject private var cameraPreview = InlineCameraPreviewController()
     @State private var showingEncoderSettings = false
     @State private var showingNewProject = false
 
@@ -69,6 +69,11 @@ struct RecordItView: View {
         .frame(width: 580)
         .task {
             await model.load()
+        }
+        .onChange(of: model.mode) {
+            // Screen and Audio modes have no camera row to show the preview in.
+            guard !model.mode.capturesCamera else { return }
+            Task { await cameraPreview.hide() }
         }
         .onReceive(
             NotificationCenter.default.publisher(
@@ -395,6 +400,16 @@ struct RecordItView: View {
                     cameraPicker
                 }
 
+                if let previewModel = cameraPreview.model {
+                    GridRow {
+                        InlineCameraPreviewPanel(
+                            cameraName: model.selectedCamera?.name ?? "camera",
+                            model: previewModel
+                        )
+                        .gridCellColumns(2)
+                    }
+                }
+
                 GridRow {
                     rowLabel("Camera audio", systemImage: "mic")
                     microphonePicker(title: "Camera Audio", allowsNone: false)
@@ -613,11 +628,19 @@ struct RecordItView: View {
                     }
                 }
                 .labelsHidden()
-                .disabled(model.isRecording || model.isBusy || cameraPreviewWindowController.isPreviewOpen)
+                .disabled(model.isRecording || model.isBusy)
+                .onChange(of: model.selectedCameraID) {
+                    guard cameraPreview.isPreviewOpen, let camera = model.selectedCamera else { return }
+                    Task { await cameraPreview.show(cameraID: camera.id) }
+                }
 
-                Button("Preview…") {
-                    if let camera = model.selectedCamera {
-                        cameraPreviewWindowController.show(camera: camera)
+                Button(cameraPreview.isPreviewOpen ? "Hide Preview" : "Preview") {
+                    Task {
+                        if cameraPreview.isPreviewOpen {
+                            await cameraPreview.hide()
+                        } else if let camera = model.selectedCamera {
+                            await cameraPreview.show(cameraID: camera.id)
+                        }
                     }
                 }
                 .disabled(cameraPreviewButtonIsDisabled(
@@ -685,7 +708,12 @@ struct RecordItView: View {
             Spacer()
 
             Button {
-                Task { await model.toggleRecording() }
+                Task {
+                    // The preview and the recorder can't both hold the camera,
+                    // so starting a take puts the preview away first.
+                    await cameraPreview.hide()
+                    await model.toggleRecording()
+                }
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: model.isRecording ? "stop.fill" : "record.circle")
@@ -699,8 +727,7 @@ struct RecordItView: View {
             .disabled(recordButtonIsDisabled(
                 canRecord: model.canRecord,
                 isRecording: model.isRecording,
-                isBusy: model.isBusy,
-                isCameraPreviewOpen: cameraPreviewWindowController.isPreviewOpen
+                isBusy: model.isBusy
             ))
         }
     }
@@ -1004,10 +1031,9 @@ private struct EncoderSettingsView: View {
 func recordButtonIsDisabled(
     canRecord: Bool,
     isRecording: Bool,
-    isBusy: Bool,
-    isCameraPreviewOpen: Bool = false
+    isBusy: Bool
 ) -> Bool {
-    isBusy || isCameraPreviewOpen || (!canRecord && !isRecording)
+    isBusy || (!canRecord && !isRecording)
 }
 
 private func elapsedTime(from start: Date, to end: Date) -> String {

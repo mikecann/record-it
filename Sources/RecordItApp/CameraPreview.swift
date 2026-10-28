@@ -17,13 +17,6 @@ enum CameraPreviewState: Equatable {
     case failed(String)
 }
 
-let cameraPreviewWindowStyleMask: NSWindow.StyleMask = [
-    .titled,
-    .closable,
-    .miniaturizable,
-    .resizable
-]
-
 @MainActor
 final class CameraPreviewModel: ObservableObject {
     @Published private(set) var state: CameraPreviewState = .idle
@@ -195,99 +188,67 @@ func addPreviewCameraInputThenApplySelectedFormat(
 }
 
 @MainActor
-final class CameraPreviewWindowController: NSObject, ObservableObject, NSWindowDelegate {
-    @Published private(set) var isPreviewOpen = false
+final class InlineCameraPreviewController: ObservableObject {
+    @Published private(set) var model: CameraPreviewModel?
 
-    private var window: NSWindow?
-    private var model: CameraPreviewModel?
-    private var isClosing = false
+    private let makeSessionController: @MainActor () -> any CameraPreviewSessionControlling
+    // Show and hide run one at a time. A new camera session must not start
+    // while the previous one still holds the device's configuration lock.
+    private var lastTransition: Task<Void, Never>?
 
-    func show(camera: CaptureCamera) {
-        if let window {
-            window.makeKeyAndOrderFront(nil)
-            NSApplication.shared.activate(ignoringOtherApps: true)
-            return
+    init(
+        makeSessionController: @escaping @MainActor () -> any CameraPreviewSessionControlling = {
+            SystemCameraPreviewSessionController()
         }
+    ) {
+        self.makeSessionController = makeSessionController
+    }
 
-        let model = CameraPreviewModel(cameraID: camera.id)
-        let content = CameraPreviewWindowContent(
-            camera: camera,
-            model: model,
-            onDone: { [weak self] in self?.close() }
-        )
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 848, height: 560),
-            styleMask: cameraPreviewWindowStyleMask,
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "Camera Preview - \(camera.name)"
-        window.contentViewController = NSHostingController(rootView: content)
-        window.delegate = self
-        window.isReleasedWhenClosed = false
-        window.minSize = NSSize(width: 640, height: 430)
-        let frameAutosaveName = "RecordItCameraPreviewWindow"
-        if !window.setFrameUsingName(frameAutosaveName) {
-            window.center()
+    var isPreviewOpen: Bool { model != nil }
+
+    func show(cameraID: String) async {
+        await runAfterPreviousTransition { [self] in
+            guard model?.cameraID != cameraID else { return }
+            await stopCurrentPreview()
+            let model = CameraPreviewModel(cameraID: cameraID, controller: makeSessionController())
+            self.model = model
+            await model.start()
         }
-        window.setFrameAutosaveName(frameAutosaveName)
-
-        self.model = model
-        self.window = window
-        isPreviewOpen = true
-        window.makeKeyAndOrderFront(nil)
-        NSApplication.shared.activate(ignoringOtherApps: true)
-
-        Task { await model.start() }
     }
 
-    func close() {
-        guard window != nil, !isClosing else { return }
-        isClosing = true
-        Task { await closePreview() }
+    func hide() async {
+        await runAfterPreviousTransition { [self] in
+            await stopCurrentPreview()
+        }
     }
 
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        close()
-        return false
+    private func stopCurrentPreview() async {
+        guard let model else { return }
+        self.model = nil
+        await model.stop()
     }
 
-    private func closePreview() async {
-        guard let window else { return }
-        await model?.stop()
-        window.delegate = nil
-        window.close()
-        self.window = nil
-        model = nil
-        isPreviewOpen = false
-        isClosing = false
+    private func runAfterPreviousTransition(_ transition: @escaping @MainActor () async -> Void) async {
+        let previous = lastTransition
+        let task = Task { @MainActor in
+            await previous?.value
+            await transition()
+        }
+        lastTransition = task
+        await task.value
     }
 }
 
 @MainActor
-private struct CameraPreviewWindowContent: View {
-    let camera: CaptureCamera
+struct InlineCameraPreviewPanel: View {
+    let cameraName: String
     @ObservedObject var model: CameraPreviewModel
-    let onDone: () -> Void
-
-    @State private var isClosing = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Camera Preview")
-                        .font(.title2.bold())
-                    Text(camera.name)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                previewStatus
-            }
-
+        VStack(alignment: .leading, spacing: 8) {
             ZStack {
                 CameraPreviewSurface(session: model.session)
-                    .accessibilityLabel("Live camera preview for \(camera.name)")
+                    .accessibilityLabel("Live camera preview for \(cameraName)")
 
                 switch model.state {
                 case .idle, .starting:
@@ -312,28 +273,20 @@ private struct CameraPreviewWindowContent: View {
                 }
             }
             .foregroundStyle(.white)
-            .aspectRatio(16 / 9, contentMode: .fit)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.black)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            // Size from the full window width. Without the fixed vertical size
+            // the Grid row proposes almost no height and the picture shrinks.
+            .aspectRatio(16 / 9, contentMode: .fit)
+            .fixedSize(horizontal: false, vertical: true)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
 
-            HStack {
+            HStack(spacing: 6) {
+                previewStatus
                 Text("Preview only. Nothing is being recorded.")
-                    .font(.caption)
                     .foregroundStyle(.secondary)
-                Spacer()
-                Button(isClosing ? "Closing…" : "Done") {
-                    isClosing = true
-                    onDone()
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(isClosing)
             }
-        }
-        .padding(24)
-        .frame(minWidth: 592, minHeight: 382)
-        .onDisappear {
-            Task { await model.stop() }
+            .font(.caption)
         }
     }
 
@@ -348,7 +301,7 @@ private struct CameraPreviewWindowContent: View {
                 .foregroundStyle(.orange)
         case .idle, .starting, .stopping:
             ProgressView()
-                .controlSize(.small)
+                .controlSize(.mini)
         }
     }
 }
