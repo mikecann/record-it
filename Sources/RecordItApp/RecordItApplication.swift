@@ -45,6 +45,7 @@ struct RecordItView: View {
     @ObservedObject var model: RecordingViewModel
     @ObservedObject private var preferences: RecordingPreferences
     @StateObject private var cameraPreview = InlineCameraPreviewController()
+    @StateObject private var teleprompter = TeleprompterLauncher()
     @State private var showingEncoderSettings = false
     @State private var showingNewProject = false
 
@@ -701,6 +702,28 @@ struct RecordItView: View {
             }
 
             Spacer()
+
+            // Stays enabled while recording: opening the prompter mid-take
+            // doesn't touch the capture pipeline.
+            Button {
+                Task {
+                    if let message = await teleprompter.open() {
+                        model.presentedError = message
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    if teleprompter.isOpening {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "text.alignleft")
+                    }
+                    Text("Teleprompter")
+                }
+            }
+            .controlSize(.large)
+            .disabled(teleprompter.isOpening)
+            .help("Open Telemprompit")
 
             Button {
                 Task {

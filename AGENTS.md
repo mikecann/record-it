@@ -117,6 +117,10 @@ later rebuilds keep the grant.
 - Screen and camera outputs are separate files so neither source is scaled into
   a combined canvas.
 - Quitting while recording finishes the active writers before the app exits.
+- **Teleprompter** beside Start Recording opens Telemprompit
+  (`com.mikerosoft.telemprompit`, falling back to `~/Applications/Telemprompit.app`)
+  or brings it forward. It stays enabled while recording and touches nothing in
+  the capture pipeline.
 
 ### Key files
 
@@ -130,5 +134,6 @@ later rebuilds keep the grant.
 | `Sources/RecordItApp/CameraRecorder.swift` | AVFoundation camera + microphone pipeline |
 | `Sources/RecordItApp/EncoderSettings.swift` | Hardware encoder discovery + rate-control configuration |
 | `Sources/RecordItApp/MovieWriter.swift` | Hardware H.264/HEVC + AAC `.mov` writer |
+| `Sources/RecordItApp/Teleprompter.swift` | Finds and opens Telemprompit |
 | `build-app.sh` | Builds, stages, and signs the app bundle |
 | `restart.sh` | Stops, rebuilds, and launches the debug app |
